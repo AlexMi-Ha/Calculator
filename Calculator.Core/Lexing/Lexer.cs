@@ -165,21 +165,27 @@ namespace Calculator.Core.Lexing {
                     tokens.Add(new Token(type, text, startPos));
 
                 // Test for numbers
-                } else if(IsDigit(lookahead)) {
+                } else if(IsDigit(lookahead) || lookahead == '.') {
                     string text = "";
                     bool hasExp = false;
+                    bool hasDecimal = false;
                     // loop through following symbols
                     while (currentPos < input.Length 
                         && (IsDigit(input[currentPos])  // digits 
                         || (Char.ToLower(input[currentPos]) == 'e' && !hasExp) //exponent symbol
-                        || (input[currentPos] == '-' && hasExp))) { // or negative symbol for a negative exponent 
+                        || (input[currentPos] == '-' && hasExp) // or negative symbol for a negative exponent 
+                        || (input[currentPos] == '.' && !hasDecimal && !hasExp))) { //Decimal point
 
                         // only allow negative symbol after the exponent symbol
                         if (input[currentPos] == '-' && Char.ToLower(input[currentPos - 1]) != 'e') 
                             break;
                         // set exponent flag
-                        if (Char.ToLower(input[currentPos]) == 'e')
+                        if (Char.ToLower(input[currentPos]) == 'e') {
                             hasExp = true;
+                            if (text.EndsWith('.')) text += '0';
+                        }
+                        if (input[currentPos] == '.')
+                            hasDecimal = true;
 
                         text += input[currentPos];
                         ++currentPos;
@@ -189,6 +195,7 @@ namespace Calculator.Core.Lexing {
                         text = text.Substring(0, text.Length - 1);
                         --currentPos;
                     }
+                    if (text.EndsWith(".")) text += '0';
                     tokens.Add(new Token(TokenType.NUM, text, startPos));
 
                 // All other characters should throw an exception

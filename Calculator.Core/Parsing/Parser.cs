@@ -2,6 +2,7 @@
 using Calculator.Core.Lexing;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 
 namespace Calculator.Core.Parsing {
@@ -271,7 +272,7 @@ namespace Calculator.Core.Parsing {
             
             switch(lexer.CurrentToken.Type) {
                 case TokenType.NUM: {
-                        Node node = new NodeNum(double.Parse(lexer.CurrentToken.Text));
+                        Node node = new NodeNum(double.Parse(lexer.CurrentToken.Text, CultureInfo.InvariantCulture));
                         lexer.NextToken();
                         return node;
                     }
