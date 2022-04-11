@@ -44,202 +44,136 @@ namespace Calculator.Core.Parsing {
             return ParseLogicOr();
         }
 
-        private Node ParseLogicOr() {
-            Node lhs = ParseLogicAnd();
+        /// <summary>
+        /// Generic Parser Method for the different operators in the order of operations
+        /// </summary>
+        /// <param name="nextOperator">Next operator group method in the order of operations</param>
+        /// <param name="tokenToOperator">Mapping of the operator tokens in the group to specific functions</param>
+        /// <returns></returns>
+        private Node ParseOperator(Func<Node> nextOperator, Func<TokenType, Func<double, double, double>> tokenToOperator) {
+            Node lhs = nextOperator();
 
             while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
+                Func<double, double, double> op = tokenToOperator(lexer.CurrentToken.Type);
+
+                if (op == null)
+                    return lhs;
+
+                lexer.NextToken();
+
+                Node rhs = nextOperator();
+                lhs = new NodeBinary(lhs, rhs, op);
+            }
+        }
+
+        private Node ParseLogicOr() {
+
+            return ParseOperator(ParseLogicAnd, (t) => {
+                return t switch {
                     TokenType.LOGIC_OR => (a, b) => a > 0 || b > 0 ? 1 : 0,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseLogicAnd();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
-        private Node ParseLogicAnd() {
-            Node lhs = ParseBitwiseOr();
 
-            while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
+        private Node ParseLogicAnd() {
+
+            return ParseOperator(ParseBitwiseOr, (t) => {
+                return t switch {
                     TokenType.LOGIC_AND => (a, b) => a > 0 && b > 0 ? 1 : 0,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseBitwiseOr();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
 
         private Node ParseBitwiseOr() {
-            Node lhs = ParseBitwiseAnd();
 
-            while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
+            return ParseOperator(ParseBitwiseAnd, (t) => {
+                return t switch {
                     TokenType.BIT_OR => (a, b) => (int)a | (int)b,
                     TokenType.BIT_XOR => (a, b) => (int)a ^ (int)b,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseBitwiseAnd();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
-        private Node ParseBitwiseAnd() {
-            Node lhs = ParseEquality();
 
-            while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
+        private Node ParseBitwiseAnd() {
+
+            return ParseOperator(ParseEquality, (t) => {
+                return t switch {
                     TokenType.BIT_AND => (a, b) => (int)a & (int)b,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseEquality();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
 
         private Node ParseEquality() {
-            Node lhs = ParseCompare();
 
-            while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
+            return ParseOperator(ParseCompare, (t) => {
+                return t switch {
                     TokenType.EQUALS => (a, b) => a == b ? 1 : 0,
                     TokenType.NOT_EQ => (a, b) => a != b ? 1 : 0,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseCompare();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
 
         private Node ParseCompare() {
-            Node lhs = ParseBitShift();
 
-            while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
+            return ParseOperator(ParseBitShift, (t) => {
+                return t switch {
                     TokenType.LESS => (a, b) => a < b ? 1 : 0,
                     TokenType.LESS_EQ => (a, b) => a <= b ? 1 : 0,
                     TokenType.GREATER => (a, b) => a > b ? 1 : 0,
                     TokenType.GREATER_EQ => (a, b) => a >= b ? 1 : 0,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseBitShift();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
 
         private Node ParseBitShift() {
-            Node lhs = ParseAddition();
 
-            while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
+            return ParseOperator(ParseAddition, (t) => {
+                return t switch {
                     TokenType.BITSHIFT_RIGHT => (a, b) => (int)a >> (int)b,
                     TokenType.BITSHIFT_LEFT => (a, b) => (int)a << (int)b,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseAddition();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
 
         private Node ParseAddition() {
-            Node lhs = ParseMultiplication();
-            
-            while(true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
-                    TokenType.ADD => (a,b) => a+b,
-                    TokenType.SUB => (a,b) => a-b,
+
+            return ParseOperator(ParseMultiplication, (t) => {
+                return t switch {
+                    TokenType.ADD => (a, b) => a + b,
+                    TokenType.SUB => (a, b) => a - b,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseMultiplication();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
 
         private Node ParseMultiplication() {
-            Node lhs = ParsePower();
 
-            while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
+            return ParseOperator(ParsePower, (t) => {
+                return t switch {
                     TokenType.MULT => (a, b) => a * b,
                     TokenType.DIV => (a, b) => a / b,
                     TokenType.INT_DIV => (a, b) => (int)a / (int)b,
                     TokenType.MOD => (a, b) => a % b,
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParsePower();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
 
         private Node ParsePower() {
-            Node lhs = ParseUnary();
 
-            while (true) {
-                Func<double, double, double> op = lexer.CurrentToken.Type switch {
-                    TokenType.POWER => (a, b) => Math.Pow(a,b),
+            return ParseOperator(ParseUnary, (t) => {
+                return t switch {
+                    TokenType.POWER => (a, b) => Math.Pow(a, b),
                     _ => null
                 };
-
-                if (op == null)
-                    return lhs;
-
-                lexer.NextToken();
-
-                Node rhs = ParseUnary();
-                lhs = new NodeBinary(lhs, rhs, op);
-            }
+            });
         }
 
         private Node ParseUnary() {
