@@ -31,6 +31,44 @@ namespace Calculator.Core.Lexing {
             this.input = input;
         }
 
+        /// <summary>
+        /// Adds one specific Tokentype to the tokens
+        /// </summary>
+        /// <param name="type">Type to add</param>
+        /// <param name="lookahead">currently looked at character</param>
+        /// <param name="startPos">start pos of the character</param>
+        /// <param name="currentPos">reference to the current position in the input</param>
+        private void AddOneCharToken(TokenType type, char lookahead, int startPos, ref int currentPos) {
+            ++currentPos;
+            tokens.Add(new Token(type, lookahead.ToString(), startPos));
+        }
+
+        /// <summary>
+        /// Adds a Token for a one or two character long tokentype
+        /// </summary>
+        /// <param name="charToTokenDict">Mapping from the second character of the token to the specific Tokentype. Character '_' is the default: The current character gets interpreted as a one character Token</param>
+        /// <param name="lookahead">currently looked at character</param>
+        /// <param name="startPos">start pos of the character</param>
+        /// <param name="currentPos">reference to the current position in the input</param>
+        private void AddTwoCharToken(Dictionary<char, TokenType> charToTokenDict, char lookahead, int startPos, ref int currentPos) {
+            // following character is not a possible follow up -> we have a one character token;; Dict has to contain default case '_'
+            if (!charToTokenDict.ContainsKey(input[++currentPos]) && charToTokenDict.ContainsKey('_')) {
+                tokens.Add(new Token(charToTokenDict['_'], lookahead.ToString(), startPos));
+
+            // Following character is defined -> two character token
+            } else if (charToTokenDict.ContainsKey(input[currentPos])) {
+                tokens.Add(new Token(charToTokenDict[input[currentPos]], lookahead.ToString() + input[currentPos].ToString(), startPos));
+                ++currentPos;
+
+            // Error: default character '_' is not defined in the dictionary
+            // occurs if there is a token which only consists of a two character sequence and has no one character counterpart
+            // if the user does not enter the specific second character this error should occur
+            // TODO: Maybe better error handling? Or recovery?
+            } else {
+                throw new UnknownCharacterException($"Unexpected character sequence {lookahead.ToString() + input[currentPos].ToString()} at {currentPos}");
+            }
+        }
+
         public List<Token> Lex() {
             tokens = new List<Token>();
             int currentPos = 0;
@@ -45,106 +83,52 @@ namespace Calculator.Core.Lexing {
                 // Test for operators and other symbols
                 switch(lookahead) {
                     case '+':
-                        ++currentPos;
-                        tokens.Add(new Token(TokenType.ADD, lookahead.ToString(), startPos));
+                        AddOneCharToken(TokenType.ADD, lookahead, startPos, ref currentPos);
                         continue;
                     case '-':
-                        ++currentPos;
-                        tokens.Add(new Token(TokenType.SUB, lookahead.ToString(), startPos));
+                        AddOneCharToken(TokenType.SUB, lookahead, startPos, ref currentPos);
                         continue;
                     case '*':
-                        if (input[++currentPos] == '*') {
-                            tokens.Add(new Token(TokenType.POWER, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else {
-                            tokens.Add(new Token(TokenType.MULT, lookahead.ToString(), startPos));
-                        }
+                        AddTwoCharToken(new Dictionary<char, TokenType> { { '*', TokenType.POWER }, { '_', TokenType.MULT } }, lookahead, startPos, ref currentPos);
                         continue;
                     case '/':
-                        if (input[++currentPos] == '/') {
-                            tokens.Add(new Token(TokenType.INT_DIV, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else {
-                            tokens.Add(new Token(TokenType.DIV, lookahead.ToString(), startPos));
-                        }
+                        AddTwoCharToken(new Dictionary<char, TokenType> { { '/', TokenType.INT_DIV }, { '_', TokenType.DIV } }, lookahead, startPos, ref currentPos);
                         continue;
                     case '%':
-                        ++currentPos;
-                        tokens.Add(new Token(TokenType.MOD, lookahead.ToString(), startPos));
+                        AddOneCharToken(TokenType.MOD, lookahead, startPos, ref currentPos);
                         continue;
                     case '^':
-                        ++currentPos;
-                        tokens.Add(new Token(TokenType.BIT_XOR, lookahead.ToString(), startPos));
+                        AddOneCharToken(TokenType.BIT_XOR, lookahead, startPos, ref currentPos);
                         continue;
                     case '&':
-                        if (input[++currentPos] == '&') {
-                            tokens.Add(new Token(TokenType.LOGIC_AND, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else {
-                            tokens.Add(new Token(TokenType.BIT_AND, lookahead.ToString(), startPos));
-                        }
+                        AddTwoCharToken(new Dictionary<char, TokenType> { { '&', TokenType.LOGIC_AND }, { '_', TokenType.BIT_AND } }, lookahead, startPos, ref currentPos);
                         continue;
                     case '|':
-                        if (input[++currentPos] == '|') {
-                            tokens.Add(new Token(TokenType.LOGIC_OR, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else {
-                            tokens.Add(new Token(TokenType.BIT_OR, lookahead.ToString(), startPos));
-                        }
+                        AddTwoCharToken(new Dictionary<char, TokenType> { { '|', TokenType.LOGIC_OR }, { '_', TokenType.BIT_OR } }, lookahead, startPos, ref currentPos);
                         continue;
                     case '!':
-                        if(input[++currentPos] == '=') {
-                            tokens.Add(new Token(TokenType.NOT_EQ, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        }else {
-                            tokens.Add(new Token(TokenType.NOT, lookahead.ToString(), startPos));
-                        }
+                        AddTwoCharToken(new Dictionary<char, TokenType> { { '=', TokenType.NOT_EQ }, { '_', TokenType.NOT } }, lookahead, startPos, ref currentPos);
                         continue;
                     case '=':
-                        if (input[++currentPos] == '=') {
-                            tokens.Add(new Token(TokenType.EQUALS, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else {
-                            tokens.Add(new Token(TokenType.ASSIGN, lookahead.ToString(), startPos));
-                        }
+                        AddTwoCharToken(new Dictionary<char, TokenType> { { '=', TokenType.EQUALS }, { '_', TokenType.ASSIGN } }, lookahead, startPos, ref currentPos);
                         continue;
                     case '>':
-                        if (input[++currentPos] == '=') {
-                            tokens.Add(new Token(TokenType.GREATER_EQ, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else if (input[currentPos] == '>') {
-                            tokens.Add(new Token(TokenType.BITSHIFT_RIGHT, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else {
-                            tokens.Add(new Token(TokenType.GREATER, lookahead.ToString(), startPos));
-                        }
+                        AddTwoCharToken(new Dictionary<char, TokenType> { { '=', TokenType.GREATER_EQ }, { '>', TokenType.BITSHIFT_RIGHT }, { '_', TokenType.GREATER } }, lookahead, startPos, ref currentPos);
                         continue;
                     case '<':
-                        if (input[++currentPos] == '=') {
-                            tokens.Add(new Token(TokenType.LESS_EQ, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else if (input[currentPos] == '<') {
-                            tokens.Add(new Token(TokenType.BITSHIFT_LEFT, lookahead.ToString() + input[currentPos].ToString(), startPos));
-                            ++currentPos;
-                        } else {
-                            tokens.Add(new Token(TokenType.LESS, lookahead.ToString(), startPos));
-                        }
+                        AddTwoCharToken(new Dictionary<char, TokenType> { { '=', TokenType.LESS_EQ }, { '<', TokenType.BITSHIFT_LEFT }, { '_', TokenType.LESS } }, lookahead, startPos, ref currentPos);
                         continue;
                     case '(':
-                        ++currentPos;
-                        tokens.Add(new Token(TokenType.OPEN_PARENS, lookahead.ToString(), startPos));
+                        AddOneCharToken(TokenType.OPEN_PARENS, lookahead, startPos, ref currentPos);
                         continue;
                     case ')':
-                        ++currentPos;
-                        tokens.Add(new Token(TokenType.CLOSE_PARENS, lookahead.ToString(), startPos));
+                        AddOneCharToken(TokenType.CLOSE_PARENS, lookahead, startPos, ref currentPos);
                         continue;
                     case ',':
-                        ++currentPos;
-                        tokens.Add(new Token(TokenType.COMMA, lookahead.ToString(), startPos));
+                        AddOneCharToken(TokenType.COMMA, lookahead, startPos, ref currentPos);
                         continue;
                     case '~':
-                        ++currentPos;
-                        tokens.Add(new Token(TokenType.BIT_COMPLEMENT, lookahead.ToString(), startPos));
+                        AddOneCharToken(TokenType.BIT_COMPLEMENT, lookahead, startPos, ref currentPos);
                         continue;
                 }
 
